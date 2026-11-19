@@ -1,9 +1,49 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
+using System.Transactions;
+
 
 public enum Type
 {
     Checking,
     Savings
+}
+
+public enum MoneyOperation
+{
+    Add,
+    Withdraw,
+    Transfer
+}
+
+public class BankTransaction
+{
+    public readonly DateTime time;
+    public readonly double amount;
+    public readonly MoneyOperation type;
+
+    public readonly int recipientNumber;
+    public readonly int senderNumber;
+
+
+    public BankTransaction(double amount, MoneyOperation type)
+    {
+        this.time = DateTime.Now;
+        this.amount = amount;
+        this.type = type;
+    }
+    public BankTransaction(double amount, MoneyOperation type, int recipientNumber, int senderNumber)
+    {
+        this.time = DateTime.Now;
+        this.amount = amount;
+        this.type = type;
+        this.senderNumber = senderNumber;
+        this.recipientNumber = recipientNumber;
+    }
+
+
+
 }
 
 public class BankAccount
@@ -13,22 +53,22 @@ public class BankAccount
     private int number;
     private double balance;
     private Type accountType;
-
+    private Queue<BankTransaction> transactions = new Queue<BankTransaction>();
+    private MoneyOperation type;
     private static int GenerateNumber()
     {
         return ++counterId;
     }
 
-    // Конструктор по умолчанию
+
     public BankAccount() : this(0.0, Type.Checking) { }
 
-    // Конструктор для заполнения баланса
     public BankAccount(double balance) : this(balance, Type.Checking) { }
 
-    // Конструктор для заполнения типа счёта
+
     public BankAccount(Type accountType) : this(0.0, accountType) { }
 
-    // Конструктор для заполнения баланса и типа
+
     public BankAccount(double balance, Type accountType)
     {
         this.number = GenerateNumber();
@@ -36,16 +76,22 @@ public class BankAccount
         this.accountType = accountType;
     }
 
+
+
     public void AddMoney(double amount)
     {
+        type = MoneyOperation.Add;
         this.balance += amount;
+        transactions.Enqueue(new BankTransaction(amount, type));
     }
 
     public void WithdrawMoney(double amount)
     {
         if (amount <= this.balance)
         {
+            type = MoneyOperation.Withdraw;
             this.balance -= amount;
+            transactions.Enqueue(new BankTransaction(amount, type));
         }
         else
         {
@@ -62,6 +108,7 @@ public class BankAccount
 
     public bool Transfer(BankAccount recipient, double amount)
     {
+
         if (recipient == null)
         {
             Console.WriteLine("Счёт получателя не существует.");
@@ -85,13 +132,17 @@ public class BankAccount
             Console.WriteLine("Недостаточно средств для перевода. Вы нищий :(");
             return false;
         }
+        type = MoneyOperation.Transfer;
+        transactions.Enqueue(new BankTransaction(amount, type, recipient.number, this.number));
 
         this.balance -= amount;
         recipient.balance += amount;
-
+        recipient.transactions.Enqueue(new BankTransaction(amount, type, recipient.number, this.number));
         Console.WriteLine($"Перевод {amount} со счёта #{this.number} на счёт #{recipient.number} выполнен успешно.");
         return true;
     }
+
+
 }
 
 public class Program
